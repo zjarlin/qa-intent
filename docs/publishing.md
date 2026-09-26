@@ -10,7 +10,8 @@
 2. 等待 GitHub CI 五个平台构建和安装测试成功，下载该提交的五个平台 artifact。
 3. 用 `BIN_DIR=<artifact目录> node npm/scripts/gen-platform-packages.mjs` 生成包。
    artifact 子目录名必须为 Rust target；每个目录含 qai 或 qai.exe。
-4. `npm run test:package` 验证主包与当前平台包的实际 tarball。
+4. `node npm/scripts/stage-main.mjs` 注入源码身份，再用
+   `npm run test:package -- --staged` 验证主包与当前平台包的实际 tarball。
 5. `node npm/scripts/publish.mjs` 先发布五个平台包，最后发布主包。
    首次发布可能要求 npm 再次二次验证；不要提交任何令牌。
 

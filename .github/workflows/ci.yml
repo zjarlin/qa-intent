@@ -87,7 +87,8 @@ jobs:
         env:
           BIN_DIR: ${{ github.workspace }}/artifacts
         run: node npm/scripts/gen-platform-packages.mjs
-      - run: npm run test:package
+      - run: node npm/scripts/stage-main.mjs
+      - run: npm run test:package -- --staged
       - name: Publish through npm Trusted Publisher or bootstrap token
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}

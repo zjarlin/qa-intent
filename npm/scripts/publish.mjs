@@ -5,7 +5,7 @@ import { fileURLToPath } from "node:url";
 import { execFileSync } from "node:child_process";
 import targets from "../bin/targets.cjs";
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
-const directories = [...targets.map(t => join(root, "dist/npm", t.pkg)), root];
+const directories = [...targets.map(t => join(root, "dist/npm", t.pkg)), join(root, "dist/npm/qa-intent")];
 for (const cwd of directories) {
   const manifest = JSON.parse(readFileSync(join(cwd, "package.json"), "utf8"));
   const entry = manifest.main ?? manifest.bin.qai;

@@ -18,7 +18,7 @@ const pack = dir => {
   return { ...result, archive: join(temp, result.filename) };
 };
 const platform = pack(join(root, "dist/npm", target.pkg));
-const main = pack(root);
+const main = pack(process.argv.includes("--staged") ? join(root, "dist/npm/qa-intent") : root);
 assert(main.files.some(f => f.path === manifest.bin.qai), "npm 包缺少命令入口");
 assert(main.files.some(f => f.path === "skills/qa-intent/SKILL.md"), "npm 包缺少技能");
 run(["install", "--offline", "--ignore-scripts", "--no-audit", "--no-fund", "--prefix", temp, platform.archive, main.archive]);
