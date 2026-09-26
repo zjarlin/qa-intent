@@ -8,6 +8,21 @@ description: 将垂直领域 QA、意图分类或答案判分需求转换为 qai
 将业务需求编译为两个可校验文件：taxonomy.json 定义判断契约，items.json/JSONL 定义输入材料。
 先查看 `qai --help` 与随包 examples。qai 是 qa-intent npm 包提供的命令。
 
+## 自然语言场景生成题库
+
+用户提供场景时优先运行 `qai generate "场景" --count 50 --output bank.json`。
+生成服务用 QAI_GENERATOR_BASE_URL、QAI_GENERATOR_MODEL、QAI_GENERATOR_API_KEY 配置；
+默认 Responses，Chat Completions 兼容服务加 `--api chat`，仅支持 JSON Object 时加 `--json-mode`。
+这使用文本生成模型，不能把 Laya/JEV 决策模型当生成模型。
+业务规则通过 `--context policies.txt` 提供。缺少 API 配置时可用 `--prompt-only` 导出离线提示词。
+
+结果是含 taxonomy 和 items 的 qa-intent.bank.v1 文档，用 `qai validate --bank bank.json` 校验。
+客服数据用 `qai export -i bank.json --format faq-json` 或 `--format faq-csv`。
+应用请求用 `--format systemone`；原有 CLI 输入用 `--format taxonomy` 和 `--format items` 分别导出。
+`--format training` 导出带 label_source 的训练草稿，不能把生成标签直接当人工真值。
+生成内容默认 needs_review=true，核实后才标 false；未审核条目导出 items 时不含 expected。
+不传 --output 时 stdout 是机器可读输出，stderr 是进度，可由任意语言调用解析。
+
 ## 建模
 
 - 明确是意图分类、选项归属还是参考答案语义判分。不要把三者的标签混用。

@@ -1,0 +1,41 @@
+{
+  "schema_version": "qa-intent.bank.v1",
+  "scenario": "电商客服：未发货订单可申请退款，已发货订单转人工核实。",
+  "generation": { "model": "external", "api": "manual" },
+  "taxonomy": {
+    "version": "1.0.0",
+    "model": "laya",
+    "questions": {
+      "intent_type": {
+        "type": "choice",
+        "instructions": "识别用户的电商客服意图。",
+        "criteria": {
+          "refund": "希望退款或取消订单",
+          "other": "不属于退款或缺少足够信息"
+        },
+        "threshold": 0.7,
+        "min_confidence": 0.7
+      }
+    }
+  },
+  "items": [
+    {
+      "id": "qa-000001",
+      "qid": "intent_type",
+      "question": "还没发货，能退款吗？",
+      "answer": "未发货订单可以申请退款，请提供订单信息以核实状态。",
+      "intent": "refund",
+      "tags": ["未发货"],
+      "needs_review": true
+    },
+    {
+      "id": "qa-000002",
+      "qid": "intent_type",
+      "question": "已经发货了，我想取消订单。",
+      "answer": "已发货订单需要人工核实，我会将你的退款需求转交客服。",
+      "intent": "refund",
+      "tags": ["已发货"],
+      "needs_review": true
+    }
+  ]
+}

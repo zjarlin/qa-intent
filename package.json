@@ -2,7 +2,7 @@
   "bin": {
     "qai": "npm/bin/qai.js"
   },
-  "description": "把垂直领域 QA 题库编译成 Laya/JEV System One 决策信封",
+  "description": "自然语言批量生成客服问答与意图题库，导出 JSON/CSV 并编译 Laya/JEV 决策请求",
   "engines": {
     "node": ">=18"
   },
@@ -12,6 +12,7 @@
     "AIO.md",
     "skills",
     "examples",
+    "prompts",
     "aio-cli.json",
     "docs"
   ],
@@ -27,11 +28,11 @@
   "license": "MIT",
   "name": "qa-intent",
   "optionalDependencies": {
-    "qa-intent-darwin-arm64": "0.1.1",
-    "qa-intent-darwin-x64": "0.1.1",
-    "qa-intent-linux-arm64": "0.1.1",
-    "qa-intent-linux-x64": "0.1.1",
-    "@zjarlin/qa-intent-win32-x64": "0.1.1"
+    "qa-intent-darwin-arm64": "0.2.0",
+    "qa-intent-darwin-x64": "0.2.0",
+    "qa-intent-linux-arm64": "0.2.0",
+    "qa-intent-linux-x64": "0.2.0",
+    "@zjarlin/qa-intent-win32-x64": "0.2.0"
   },
   "repository": { "type": "git", "url": "git+https://github.com/zjarlin/qa-intent.git" },
   "homepage": "https://github.com/zjarlin/qa-intent#readme",
@@ -40,5 +41,5 @@
     "test:package": "node npm/scripts/smoke-package.mjs",
     "build": "cargo build --release --locked"
   },
-  "version": "0.1.1"
+  "version": "0.2.0"
 }

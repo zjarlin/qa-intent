@@ -23,11 +23,16 @@ assert(main.files.some(f => f.path === manifest.bin.qai), "npm 包缺少命令�
 assert(main.files.some(f => f.path === "skills/qa-intent/SKILL.md"), "npm 包缺少技能");
 run(["install", "--offline", "--ignore-scripts", "--no-audit", "--no-fund", "--prefix", temp, platform.archive, main.archive]);
 const installed = join(temp, "node_modules/qa-intent");
+assert.equal(readFileSync(join(installed, "README.md"), "utf8"), readFileSync(join(root, "README.md"), "utf8"), "npm README 必须与仓库一致");
 const entry = join(installed, manifest.bin.qai);
 const invoke = args => execFileSync(process.execPath, [entry, ...args], { cwd: temp, encoding: "utf8" });
 assert.equal(invoke(["--version"]).trim(), `qai ${manifest.version}`);
 const output = invoke(["-t", join(installed, "examples/taxonomy.json"), "compile", "-i", join(installed, "examples/items.json"), "--raw"]);
 assert.equal(output.trim().split("\n").length, 2);
 for (const line of output.trim().split("\n")) assert.equal(JSON.parse(line).model, "laya");
+const bank = join(installed, "examples/customer-service-bank.json");
+assert.equal(JSON.parse(invoke(["validate", "--bank", bank])).items, 2);
+assert.equal(JSON.parse(invoke(["export", "-i", bank, "--format", "faq-json"])).length, 2);
+assert(invoke(["generate", "customer service", "--prompt-only"]).includes("qa-intent.bank.v1"));
 assert(existsSync(join(temp, "node_modules/.bin", process.platform === "win32" ? "qai.cmd" : "qai")), "安装未生成命令链接");
 console.log(`npm tarball 安装验证通过：${target.pkg}，${temp}`);

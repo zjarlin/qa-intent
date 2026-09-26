@@ -28,6 +28,8 @@ CI 使用 Node 24、npm 11 和 OIDC provenance。默认分支推送/手动 dispa
 账号验证及可信发布者配置完成后无需在每次推送时人工验证。
 
 发布器仅在 registry 已存在精确版本时跳过；404 代表需要发布，其他错误立即失败。
+发布五个平台包后先等待它们全部公开，再发布主包；主包公开后校验 registry README
+与根目录 README.md 一致。每轮最多等待约 5 分钟，npm 处理更久时应等版本公开后重跑。
 不要修改已发布版本的内容后仍沿用原版本。更新 Cargo.toml、Cargo.lock、
 package.json 及所有 optionalDependencies 的版本后提交。
 

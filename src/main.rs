@@ -3,10 +3,17 @@ mod cli;
 use anyhow::{Context, Result};
 use clap::Parser;
 use cli::{Cli, Command};
-use qa_intent::{client, compiler::Compiler, dataset, feedback, model::Answer, taxonomy::Taxonomy};
+use qa_intent::{
+    bank::{self, ExportFormat, QuestionBank},
+    client,
+    compiler::Compiler,
+    dataset, feedback, generator,
+    model::Answer,
+    taxonomy::Taxonomy,
+};
 use std::{
     fs::File,
-    io::{BufReader, BufWriter, Write},
+    io::{BufReader, BufWriter, Read, Write},
     path::Path,
 };
 
@@ -19,6 +26,61 @@ fn main() {
 
 fn run(cli: Cli) -> Result<()> {
     match &cli.command {
+        Command::Generate(args) => {
+            if let Some(output) = &args.output {
+                anyhow::ensure!(!output.exists(), "输出文件已存在，不会覆盖");
+            }
+            let scenario = match &args.scenario_file {
+                Some(path) if path == Path::new("-") => {
+                    let mut text = String::new();
+                    std::io::stdin().read_to_string(&mut text)?;
+                    text
+                }
+                Some(path) => std::fs::read_to_string(path).context("读取场景文件失败")?,
+                None => args.scenario.clone().unwrap_or_default(),
+            };
+            let context = args
+                .context
+                .as_ref()
+                .map(std::fs::read_to_string)
+                .transpose()
+                .context("读取业务资料失败")?
+                .unwrap_or_default();
+            let settings = generator::Settings {
+                scenario,
+                context,
+                count: args.count,
+                batch_size: args.batch_size,
+                concurrency: args.concurrency,
+                retries: args.retries,
+                decision_model: args.decision_model.clone(),
+            };
+            settings.validate()?;
+            if args.prompt_only {
+                let prompt = generator::prompt(&settings)?;
+                return bank::write_output(args.output.as_deref(), |out| {
+                    out.write_all(prompt.as_bytes())?;
+                    Ok(())
+                });
+            }
+            let model = args.model.clone().context(
+                "请配置 --model 或 QAI_GENERATOR_MODEL；离线生成提示词可用 --prompt-only",
+            )?;
+            let client = generator::client::GeneratorClient::new(
+                &args.base_url,
+                args.api_key.clone(),
+                model,
+                args.api,
+                args.json_mode,
+                args.timeout,
+            )?;
+            let generated = generator::generate(&client, &settings)?;
+            bank::write_output(args.output.as_deref(), |out| {
+                serde_json::to_writer_pretty(&mut *out, &generated)?;
+                writeln!(out)?;
+                Ok(())
+            })?;
+        }
         Command::Init { force } => {
             let taxonomy: Taxonomy =
                 serde_json::from_str(include_str!("../examples/taxonomy.json"))?;
@@ -34,7 +96,14 @@ fn run(cli: Cli) -> Result<()> {
             writeln!(file)?;
             eprintln!("已生成标签体系：{}", cli.taxonomy.display());
         }
-        Command::Validate => {
+        Command::Validate { bank: Some(path) } => {
+            let bank = QuestionBank::load(path)?;
+            println!(
+                "{}",
+                serde_json::json!({"valid":true,"schema_version":bank.schema_version,"items":bank.items.len()})
+            );
+        }
+        Command::Validate { bank: None } => {
             let taxonomy = Taxonomy::load(&cli.taxonomy)?;
             println!(
                 "{}",
@@ -58,12 +127,22 @@ fn run(cli: Cli) -> Result<()> {
             })?;
             output.flush()?;
         }
-        Command::Export { input } => {
-            let taxonomy = Taxonomy::load(&cli.taxonomy)?;
-            let mut output = BufWriter::new(std::io::stdout().lock());
-            dataset::export(&taxonomy, input, &mut output)?;
-            output.flush()?;
-        }
+        Command::Export {
+            input,
+            format,
+            output,
+        } => match format {
+            ExportFormat::Supervised => {
+                let taxonomy = Taxonomy::load(&cli.taxonomy)?;
+                bank::write_output(output.as_deref(), |out| {
+                    dataset::export(&taxonomy, input, out)
+                })?;
+            }
+            _ => {
+                let bank = QuestionBank::load(input)?;
+                bank::write_output(output.as_deref(), |out| bank::export(&bank, *format, out))?;
+            }
+        },
         Command::Evaluate => dataset::evaluate(&cli.feedback, std::io::stdout().lock())?,
         Command::Ask {
             input,

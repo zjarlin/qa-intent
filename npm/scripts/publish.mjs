@@ -4,19 +4,28 @@ import { join, dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { execFileSync } from "node:child_process";
 import targets from "../bin/targets.cjs";
+import { releaseVisible, waitForRegistry, verifyReadme } from "./registry.mjs";
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
 const directories = [...targets.map(t => join(root, "dist/npm", t.pkg)), join(root, "dist/npm/qa-intent")];
-for (const cwd of directories) {
+const packages = directories.map(cwd => {
   const manifest = JSON.parse(readFileSync(join(cwd, "package.json"), "utf8"));
   const entry = manifest.main ?? manifest.bin.qai;
   if (statSync(join(cwd, entry)).size === 0) throw new Error("不能发布空入口");
-  const response = await fetch(`https://registry.npmjs.org/${encodeURIComponent(manifest.name)}/${manifest.version}`);
-  if (response.ok) {
+  return { cwd, manifest };
+});
+async function publish({ cwd, manifest }) {
+  if (await releaseVisible(manifest)) {
     console.log(`已发布 ${manifest.name}@${manifest.version}`);
-    continue;
+    return;
   }
-  if (response.status !== 404) throw new Error(`registry 返回 HTTP ${response.status}，停止发布`);
   const args = ["publish", "--access", "public"];
   if (process.env.GITHUB_ACTIONS === "true") args.push("--provenance");
   execFileSync("npm", args, { cwd, stdio: "inherit" });
 }
+const platformPackages = packages.slice(0, -1);
+for (const pkg of platformPackages) await publish(pkg);
+await waitForRegistry(platformPackages.map(p => p.manifest));
+const main = packages.at(-1);
+await publish(main);
+await waitForRegistry([main.manifest]);
+await verifyReadme(main.manifest.name, readFileSync(join(root, "README.md"), "utf8"));
