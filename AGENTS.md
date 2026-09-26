@@ -9,4 +9,6 @@ Validation: cargo fmt --check; cargo clippy --all-targets --locked -- -D warning
 Packaging: build native target, run npm/scripts/gen-platform-packages.mjs <target>,
 then npm run test:package. Keep Cargo and all npm package versions aligned.
 Five target definitions live only in npm/bin/targets.cjs. Missing binaries must fail packaging.
-Only ci.yml publishes. Authentication failure must remain a failure; no false green release.
+Only ci.yml publishes to npm. aio-cli.yml only syncs the matching release to AIO,
+whose identity contract requires that exact workflow filename.
+Authentication failure must remain a failure; no false green release.

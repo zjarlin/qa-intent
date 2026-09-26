@@ -35,7 +35,9 @@ package.json 及所有 optionalDependencies 的版本后提交。
 
 每个平台 job 都执行真实 npm pack + 离线 npm install，
 校验命令链接、版本、随包 skill 和示例编译。发布后 CI 再从公共 npm registry 安装。
-随后用 AIO 的 `tool release sync` 同步市场，npm 与市场的成功状态分别报告。
+独立的 `aio-cli.yml` 用 AIO 的 `tool release sync` 等待并同步同一提交的 npm 版本，
+不重复发布 npm。AIO 身份校验要求这个工作流名称；npm 与市场的成功状态分别报告。
+市场工作流最多等待约 10 分钟，超时后可在 npm 发布成功时重新运行。
 
 ```sh
 cargo build --release --locked --target aarch64-apple-darwin

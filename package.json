@@ -27,11 +27,11 @@
   "license": "MIT",
   "name": "qa-intent",
   "optionalDependencies": {
-    "qa-intent-darwin-arm64": "0.1.0",
-    "qa-intent-darwin-x64": "0.1.0",
-    "qa-intent-linux-arm64": "0.1.0",
-    "qa-intent-linux-x64": "0.1.0",
-    "@zjarlin/qa-intent-win32-x64": "0.1.0"
+    "qa-intent-darwin-arm64": "0.1.1",
+    "qa-intent-darwin-x64": "0.1.1",
+    "qa-intent-linux-arm64": "0.1.1",
+    "qa-intent-linux-x64": "0.1.1",
+    "@zjarlin/qa-intent-win32-x64": "0.1.1"
   },
   "repository": { "type": "git", "url": "git+https://github.com/zjarlin/qa-intent.git" },
   "homepage": "https://github.com/zjarlin/qa-intent#readme",
@@ -40,5 +40,5 @@
     "test:package": "node npm/scripts/smoke-package.mjs",
     "build": "cargo build --release --locked"
   },
-  "version": "0.1.0"
+  "version": "0.1.1"
 }

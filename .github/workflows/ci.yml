@@ -99,5 +99,3 @@ jobs:
           npm install --global "qa-intent@$package_version"
           qai --version
           qai -t examples/taxonomy.json compile -i examples/items.json --raw
-      - name: Sync AIO marketplace
-        run: npx --yes @zjarlin/aio@2026.9.22 tool release sync

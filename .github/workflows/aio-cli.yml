@@ -1,0 +1,27 @@
+name: AIO Marketplace
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: qa-intent-marketplace-${{ github.ref }}
+  cancel-in-progress: false
+jobs:
+  sync:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '24'
+          package-manager-cache: false
+      - run: node npm/scripts/stage-main.mjs
+      - name: Wait for matching npm release and sync marketplace
+        run: npx --yes @zjarlin/aio@2026.9.22 tool release sync
