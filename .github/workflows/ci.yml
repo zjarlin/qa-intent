@@ -12,7 +12,7 @@ jobs:
   test:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - uses: dtolnay/rust-toolchain@stable
         with:
           components: clippy, rustfmt
@@ -41,7 +41,7 @@ jobs:
             os: windows-latest
     runs-on: ${{ matrix.os }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - uses: dtolnay/rust-toolchain@stable
         with:
           targets: ${{ matrix.target }}
@@ -74,7 +74,7 @@ jobs:
       contents: read
       id-token: write
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - uses: actions/setup-node@v4
         with:
           node-version: 22
@@ -100,11 +100,34 @@ jobs:
           BIN_DIR: ${{ github.workspace }}/bin-dir
         run: node npm/scripts/gen-platform-packages.mjs
 
+      # 认证方式二选一（本步骤两者都兼容）：
+      # 1) Trusted Publisher：在 npmjs.com 为每个包配置 GitHub Actions 发布者
+      #    （repository=zjarlin/qa-intent, workflow=ci.yml），无需 NPM_TOKEN；
+      # 2) NPM_TOKEN：在仓库添加 NPM_TOKEN secret（Automation token）。
       - name: Publish platform packages
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
         run: |
+          set -euo pipefail
           for dir in dist/npm/*/; do
+            name=$(node -p "require('./$dir/package.json').name")
+            version=$(node -p "require('./$dir/package.json').version")
+            if npm view "$name@$version" version >/dev/null 2>&1; then
+              echo "跳过 $name@$version（已发布）"
+              continue
+            fi
             (cd "$dir" && npm publish --access public --provenance)
           done
 
       - name: Publish main package
-        run: npm publish --access public --provenance
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: |
+          set -euo pipefail
+          name=$(node -p "require('./package.json').name")
+          version=$(node -p "require('./package.json').version")
+          if npm view "$name@$version" version >/dev/null 2>&1; then
+            echo "跳过 $name@$version（已发布）"
+            exit 0
+          fi
+          npm publish --access public --provenance

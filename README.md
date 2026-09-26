@@ -205,6 +205,11 @@ cargo test
 cargo build --release
 ```
 
+## 发布
+
+见 [docs/publishing.md](docs/publishing.md)。推送到 `main` 会触发
+五平台构建与 npm 发布（Trusted Publisher 或 `NPM_TOKEN` 二选一）。
+
 ## License
 
 MIT
