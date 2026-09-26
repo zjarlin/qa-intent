@@ -9,6 +9,7 @@
   "files": [
     "npm/bin",
     "README.md",
+    "AIO.md",
     "skills",
     "examples",
     "aio-cli.json",
@@ -30,7 +31,7 @@
     "qa-intent-darwin-x64": "0.1.0",
     "qa-intent-linux-arm64": "0.1.0",
     "qa-intent-linux-x64": "0.1.0",
-    "qa-intent-win32-x64": "0.1.0"
+    "@zjarlin/qa-intent-win32-x64": "0.1.0"
   },
   "repository": { "type": "git", "url": "git+https://github.com/zjarlin/qa-intent.git" },
   "homepage": "https://github.com/zjarlin/qa-intent#readme",

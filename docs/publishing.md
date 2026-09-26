@@ -2,7 +2,8 @@
 
 主包 `qa-intent` 的命令入口是 `npm/bin/qai.js`，通过 optionalDependencies 分发
 `qa-intent-darwin-arm64`、`qa-intent-darwin-x64`、`qa-intent-linux-arm64`、
-`qa-intent-linux-x64`、`qa-intent-win32-x64`。这些是普通包名，不需要创建 npm 组织。
+`qa-intent-linux-x64`、`@zjarlin/qa-intent-win32-x64`。Windows 包使用发布者的个人 scope，
+无需创建 npm 组织；主包仍为 `qa-intent`。
 
 ## 首次发布
 
