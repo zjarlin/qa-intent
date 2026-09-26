@@ -1,0 +1,23 @@
+{
+  "version": "1.0.0",
+  "model": "laya",
+  "questions": {
+    "intent_type": {
+      "type": "choice",
+      "instructions": "这道题属于哪一类意图？",
+      "criteria": {
+        "common_sense": "需要常识或世界模型推理的题",
+        "calculation": "纯数值计算题",
+        "lookup": "事实查询题"
+      },
+      "threshold": 0.5,
+      "action": "route_to_solver"
+    },
+    "equivalent": {
+      "type": "noul",
+      "instructions": "用户的回答与参考答案在语义上是否等价？",
+      "threshold": 0.7,
+      "action": "mark_correct"
+    }
+  }
+}

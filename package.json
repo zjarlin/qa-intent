@@ -1,0 +1,17 @@
+{
+  "name": "qa-intent",
+  "version": "0.1.0",
+  "description": "把垂直领域 QA 题库编译成 Laya/JEV System One 决策信封",
+  "keywords": ["laya", "jev", "systemone", "intent", "classification", "decision-model", "cli"],
+  "license": "MIT",
+  "bin": { "qai": "bin/qai.js" },
+  "files": ["bin/qai.js", "README.md"],
+  "engines": { "node": ">=18" },
+  "optionalDependencies": {
+    "@qa-intent/cli-darwin-arm64": "0.1.0",
+    "@qa-intent/cli-darwin-x64": "0.1.0",
+    "@qa-intent/cli-linux-x64": "0.1.0",
+    "@qa-intent/cli-linux-arm64": "0.1.0",
+    "@qa-intent/cli-win32-x64": "0.1.0"
+  }
+}
