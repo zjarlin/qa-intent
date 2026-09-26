@@ -14,12 +14,15 @@ pub struct QuestionDef {
     #[serde(rename = "type")]
     pub kind: QuestionKind,
     pub instructions: String,
-    /// choice 必填；noul 忽略。
+    /// choice 必填；noul 不允许设置。
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub criteria: Option<BTreeMap<String, String>>,
-    /// 判定阈值，仅 noul 有意义。默认 0.5。
+    /// noul 的正例阈值，choice 的所选答案概率门槛。
     #[serde(default = "default_threshold")]
     pub threshold: f64,
+    /// 最低答案置信度；低于此值必须复核，不提供业务动作。
+    #[serde(default = "default_min_confidence")]
+    pub min_confidence: f64,
     /// 命中后要触发的业务动作，供应用层读取。
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub action: Option<String>,
@@ -27,6 +30,10 @@ pub struct QuestionDef {
 
 fn default_threshold() -> f64 {
     0.5
+}
+
+fn default_min_confidence() -> f64 {
+    0.7
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -59,12 +66,16 @@ impl Taxonomy {
     }
 
     pub fn validate(&self) -> Result<()> {
+        if self.version.trim().is_empty() || self.model.trim().is_empty() {
+            anyhow::bail!("version 与 model 不能为空");
+        }
         if self.questions.is_empty() {
             anyhow::bail!("标签体系里没有任何 qid");
         }
         for (qid, def) in &self.questions {
             crate::validate::validate_qid(qid)?;
             crate::validate::validate_threshold(def.threshold)?;
+            crate::validate::validate_threshold(def.min_confidence)?;
             if def.instructions.trim().is_empty() {
                 anyhow::bail!("qid {qid} 的 instructions 为空");
             }
@@ -79,9 +90,7 @@ impl Taxonomy {
                         .criteria
                         .as_ref()
                         .ok_or_else(|| anyhow::anyhow!("qid {qid} 是 choice，必须提供 criteria"))?;
-                    if criteria.is_empty() {
-                        anyhow::bail!("qid {qid} 的 criteria 为空");
-                    }
+                    crate::validate::validate_criteria(criteria)?;
                 }
             }
         }

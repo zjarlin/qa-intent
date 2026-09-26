@@ -1,16 +1,20 @@
 name: CI
-
 on:
   push:
     branches: [main]
   pull_request:
-
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: qa-intent-${{ github.ref }}
+  cancel-in-progress: false
 env:
   CARGO_TERM_COLOR: always
-
 jobs:
   test:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v5
       - uses: dtolnay/rust-toolchain@stable
@@ -18,27 +22,25 @@ jobs:
           components: clippy, rustfmt
       - uses: Swatinem/rust-cache@v2
       - run: cargo fmt --check
-      - run: cargo clippy --all-targets -- -D warnings
-      - run: cargo test
-
+      - run: cargo clippy --all-targets --locked -- -D warnings
+      - run: cargo test --locked
   build:
     needs: test
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    timeout-minutes: 20
     strategy:
       fail-fast: false
       matrix:
         include:
           - target: aarch64-apple-darwin
-            os: macos-latest
+            os: macos-15
           - target: x86_64-apple-darwin
             os: macos-15-intel
           - target: x86_64-unknown-linux-gnu
-            os: ubuntu-latest
+            os: ubuntu-24.04
           - target: aarch64-unknown-linux-gnu
-            os: ubuntu-latest
-            cross: true
+            os: ubuntu-24.04-arm
           - target: x86_64-pc-windows-msvc
-            os: windows-latest
+            os: windows-2025
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v5
@@ -48,86 +50,53 @@ jobs:
       - uses: Swatinem/rust-cache@v2
         with:
           key: ${{ matrix.target }}
-      - name: Install cross
-        if: matrix.cross
-        run: cargo install cross --locked
-      - name: Build
-        shell: bash
-        run: |
-          if [ "${{ matrix.cross }}" = "true" ]; then
-            cross build --release --target ${{ matrix.target }}
-          else
-            cargo build --release --target ${{ matrix.target }}
-          fi
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '24'
+          package-manager-cache: false
+      - run: cargo build --release --locked --target ${{ matrix.target }}
+      - run: node npm/scripts/gen-platform-packages.mjs ${{ matrix.target }}
+      - run: npm run test:package
       - uses: actions/upload-artifact@v4
         with:
-          name: qai-${{ matrix.target }}
+          name: ${{ matrix.target }}
+          if-no-files-found: error
           path: |
             target/${{ matrix.target }}/release/qai
             target/${{ matrix.target }}/release/qai.exe
-
   publish:
     needs: build
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-    runs-on: ubuntu-latest
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
     permissions:
       contents: read
       id-token: write
     steps:
       - uses: actions/checkout@v5
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v5
         with:
-          node-version: 22
+          node-version: '24'
           registry-url: https://registry.npmjs.org
+          package-manager-cache: false
+      - run: npm install --global npm@11
       - uses: actions/download-artifact@v4
         with:
           path: artifacts
-
-      - name: Stage binaries
-        run: |
-          mkdir -p bin-dir/aarch64-apple-darwin bin-dir/x86_64-apple-darwin \
-                   bin-dir/x86_64-unknown-linux-gnu bin-dir/aarch64-unknown-linux-gnu \
-                   bin-dir/x86_64-pc-windows-msvc
-          cp artifacts/qai-aarch64-apple-darwin/qai bin-dir/aarch64-apple-darwin/qai
-          cp artifacts/qai-x86_64-apple-darwin/qai bin-dir/x86_64-apple-darwin/qai
-          cp artifacts/qai-x86_64-unknown-linux-gnu/qai bin-dir/x86_64-unknown-linux-gnu/qai
-          cp artifacts/qai-aarch64-unknown-linux-gnu/qai bin-dir/aarch64-unknown-linux-gnu/qai
-          cp artifacts/qai-x86_64-pc-windows-msvc/qai.exe bin-dir/x86_64-pc-windows-msvc/qai.exe
-          chmod +x bin-dir/*/qai
-
-      - name: Generate platform packages
+      - name: Stage all platform packages
         env:
-          BIN_DIR: ${{ github.workspace }}/bin-dir
+          BIN_DIR: ${{ github.workspace }}/artifacts
         run: node npm/scripts/gen-platform-packages.mjs
-
-      # 认证方式二选一（本步骤两者都兼容）：
-      # 1) Trusted Publisher：在 npmjs.com 为每个包配置 GitHub Actions 发布者
-      #    （repository=zjarlin/qa-intent, workflow=ci.yml），无需 NPM_TOKEN；
-      # 2) NPM_TOKEN：在仓库添加 NPM_TOKEN secret（Automation token）。
-      - name: Publish platform packages
+      - run: npm run test:package
+      - name: Publish through npm Trusted Publisher or bootstrap token
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: node npm/scripts/publish.mjs
+      - name: Verify public installation
         run: |
-          set -euo pipefail
-          for dir in dist/npm/*/; do
-            name=$(node -p "require('./$dir/package.json').name")
-            version=$(node -p "require('./$dir/package.json').version")
-            if npm view "$name@$version" version >/dev/null 2>&1; then
-              echo "跳过 $name@$version（已发布）"
-              continue
-            fi
-            (cd "$dir" && npm publish --access public --provenance)
-          done
-
-      - name: Publish main package
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-        run: |
-          set -euo pipefail
-          name=$(node -p "require('./package.json').name")
-          version=$(node -p "require('./package.json').version")
-          if npm view "$name@$version" version >/dev/null 2>&1; then
-            echo "跳过 $name@$version（已发布）"
-            exit 0
-          fi
-          npm publish --access public --provenance
+          package_version=$(node -p "require('./package.json').version")
+          npm install --global "qa-intent@$package_version"
+          qai --version
+          qai -t examples/taxonomy.json compile -i examples/items.json --raw
+      - name: Sync AIO marketplace
+        run: npx --yes @zjarlin/aio@2026.9.22 tool release sync

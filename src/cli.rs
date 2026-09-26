@@ -3,7 +3,7 @@
 use clap::{Parser, Subcommand};
 use std::path::PathBuf;
 
-#[derive(Parser, Debug)]
+#[derive(Parser)]
 #[command(
     name = "qai",
     version,
@@ -25,7 +25,7 @@ pub struct Cli {
     pub command: Command,
 }
 
-#[derive(Subcommand, Debug)]
+#[derive(Subcommand)]
 pub enum Command {
     /// 初始化一份示例标签体系
     Init {
@@ -36,6 +36,15 @@ pub enum Command {
 
     /// 校验标签体系是否合法
     Validate,
+
+    /// 导出通用监督数据 JSONL（训练器需自行适配）
+    Export {
+        #[arg(short, long)]
+        input: PathBuf,
+    },
+
+    /// 统计带人工 expected 的回流数据准确率与覆盖率
+    Evaluate,
 
     /// 把一道 QA 题编译成 Laya 信封
     Compile {
@@ -63,7 +72,7 @@ pub enum Command {
         endpoint: Option<String>,
 
         /// API Key（默认读 CODEX_GROUP_KEY）
-        #[arg(long, env = "CODEX_GROUP_KEY")]
+        #[arg(long, env = "CODEX_GROUP_KEY", hide_env_values = true)]
         api_key: Option<String>,
 
         /// 请求超时（秒）
@@ -78,7 +87,7 @@ pub enum Command {
     /// 查看回流文件里的待复核样本
     Review {
         /// 只显示 needs_review = true 的记录
-        #[arg(long, default_value_t = true)]
+        #[arg(long, default_value_t = true, action = clap::ArgAction::Set)]
         pending_only: bool,
     },
 }

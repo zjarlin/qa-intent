@@ -1,0 +1,12 @@
+{
+  "id": "qa-intent",
+  "title": "QA 意图编译器",
+  "command": "qai",
+  "platforms": [
+    "macos",
+    "linux",
+    "windows"
+  ],
+  "setup": [],
+  "uninstall": []
+}

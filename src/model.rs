@@ -7,7 +7,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value};
 use std::collections::BTreeMap;
 
-/// 问题类型。Laya 只支持这两种，不允许扩展。
+/// 本 CLI 首版支持的两个题型子集，上游还可能支持其他题型。
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum QuestionKind {
@@ -58,6 +58,8 @@ pub struct Answer {
     pub confidence: Option<f64>,
     #[serde(default)]
     pub answer_confidence: Option<f64>,
+    #[serde(default)]
+    pub probabilities: BTreeMap<String, f64>,
 }
 
 #[derive(Debug, Clone, Deserialize, Default)]

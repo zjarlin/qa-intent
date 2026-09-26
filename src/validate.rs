@@ -6,14 +6,16 @@ use anyhow::{bail, Result};
 
 /// qid 必须是语义化短名，禁止 q1/问题1 这类不可读编号。
 pub fn validate_qid(qid: &str) -> Result<()> {
-    let qid = qid.trim();
+    if qid != qid.trim() {
+        bail!("qid 不能包含首尾空白");
+    }
     if qid.is_empty() {
         bail!("qid 不能为空");
     }
     if qid.len() > 64 {
         bail!("qid 过长（{qid}），请控制在 64 字符内");
     }
-    if !qid.chars().next().unwrap().is_ascii_lowercase() {
+    if !qid.starts_with(|c: char| c.is_ascii_lowercase()) {
         bail!("qid 必须以小写字母开头：{qid}");
     }
     let ok = qid
@@ -35,8 +37,21 @@ pub fn validate_qid(qid: &str) -> Result<()> {
 
 /// 阈值必须在 (0, 1) 区间内。
 pub fn validate_threshold(threshold: f64) -> Result<()> {
-    if !(0.0..1.0).contains(&threshold) {
+    if !threshold.is_finite() || threshold <= 0.0 || threshold >= 1.0 {
         bail!("阈值必须在 (0, 1) 区间内，当前为 {threshold}");
+    }
+    Ok(())
+}
+
+/// 候选是受控标签，拒绝空定义与静默覆盖。
+pub fn validate_criteria(criteria: &std::collections::BTreeMap<String, String>) -> Result<()> {
+    if criteria.len() < 2 {
+        bail!("choice 至少需要两个候选");
+    }
+    for (key, description) in criteria {
+        if key.is_empty() || key != key.trim() || description.trim().is_empty() {
+            bail!("criteria 的 key 与判定说明必须非空，key 不能含首尾空白");
+        }
     }
     Ok(())
 }
@@ -60,8 +75,7 @@ pub fn validate_envelope(envelope: &crate::model::Envelope) -> Result<()> {
             }
             QuestionKind::Choice => match &question.criteria {
                 None => bail!("choice 类型必须提供 criteria（qid = {qid}）"),
-                Some(c) if c.is_empty() => bail!("choice 的 criteria 不能为空（qid = {qid}）"),
-                Some(_) => {}
+                Some(c) => validate_criteria(c)?,
             },
         }
     }

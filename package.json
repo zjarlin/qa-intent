@@ -1,17 +1,43 @@
 {
-  "name": "qa-intent",
-  "version": "0.1.0",
+  "bin": {
+    "qai": "npm/bin/qai.js"
+  },
   "description": "把垂直领域 QA 题库编译成 Laya/JEV System One 决策信封",
-  "keywords": ["laya", "jev", "systemone", "intent", "classification", "decision-model", "cli"],
+  "engines": {
+    "node": ">=18"
+  },
+  "files": [
+    "npm/bin",
+    "README.md",
+    "skills",
+    "examples",
+    "aio-cli.json",
+    "docs"
+  ],
+  "keywords": [
+    "laya",
+    "jev",
+    "systemone",
+    "intent",
+    "classification",
+    "decision-model",
+    "cli"
+  ],
   "license": "MIT",
-  "bin": { "qai": "bin/qai.js" },
-  "files": ["bin/qai.js", "README.md"],
-  "engines": { "node": ">=18" },
+  "name": "qa-intent",
   "optionalDependencies": {
-    "@qa-intent/cli-darwin-arm64": "0.1.0",
-    "@qa-intent/cli-darwin-x64": "0.1.0",
-    "@qa-intent/cli-linux-x64": "0.1.0",
-    "@qa-intent/cli-linux-arm64": "0.1.0",
-    "@qa-intent/cli-win32-x64": "0.1.0"
-  }
+    "qa-intent-darwin-arm64": "0.1.0",
+    "qa-intent-darwin-x64": "0.1.0",
+    "qa-intent-linux-arm64": "0.1.0",
+    "qa-intent-linux-x64": "0.1.0",
+    "qa-intent-win32-x64": "0.1.0"
+  },
+  "repository": { "type": "git", "url": "git+https://github.com/zjarlin/qa-intent.git" },
+  "homepage": "https://github.com/zjarlin/qa-intent#readme",
+  "scripts": {
+    "test": "cargo test --locked",
+    "test:package": "node npm/scripts/smoke-package.mjs",
+    "build": "cargo build --release --locked"
+  },
+  "version": "0.1.0"
 }

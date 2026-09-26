@@ -21,6 +21,7 @@ impl Client {
         timeout_secs: u64,
     ) -> Result<Self> {
         let http = reqwest::blocking::Client::builder()
+            .redirect(reqwest::redirect::Policy::none())
             .timeout(Duration::from_secs(timeout_secs))
             .build()
             .context("构建 HTTP 客户端失败")?;
@@ -50,13 +51,13 @@ impl Client {
             .send()
             .with_context(|| format!("调用 System One 失败：{}", self.endpoint))?;
         let status = response.status();
-        let text = response.text().unwrap_or_default();
+        let text = response.text().context("读取 System One 响应失败")?;
 
         if !status.is_success() {
-            bail!("System One 返回 {status}：{text}");
+            bail!("System One 返回 HTTP {status}");
         }
-        let parsed: DecisionResponse = serde_json::from_str(&text)
-            .with_context(|| format!("解析 System One 返回失败：{text}"))?;
+        let parsed: DecisionResponse =
+            serde_json::from_str(&text).context("解析 System One 返回失败")?;
         Ok(parsed)
     }
 }

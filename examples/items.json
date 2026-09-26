@@ -4,12 +4,14 @@
     "question": "树上7个鸟，开了一枪还剩几个鸟？",
     "qid": "equivalent",
     "reference_answer": "0个，枪声吓飞其他鸟",
-    "user_answer": "都飞走了所以是0"
+    "user_answer": "都飞走了所以是0",
+    "expected": true
   },
   {
     "id": "bird-02",
     "question": "树上7个鸟，开了一枪还剩几个鸟？",
     "qid": "intent_type",
+    "expected": "common_sense",
     "options": [
       { "key": "common_sense", "description": "需要常识推理，枪声会吓飞鸟" },
       { "key": "calculation", "description": "只用 7-1=6 计算" }

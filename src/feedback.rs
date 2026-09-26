@@ -13,6 +13,10 @@ pub struct FeedbackRecord {
     pub item_id: String,
     pub qid: String,
     pub model: String,
+    pub taxonomy_version: String,
+    pub state: serde_json::Value,
+    pub prediction: serde_json::Value,
+    pub accepted: bool,
     /// 模型给出的原始 answers[qid]。
     pub answer: serde_json::Value,
     /// 应用层最终判定结果（业务真值）。
@@ -31,26 +35,30 @@ impl FeedbackRecord {
     pub fn from_answer(
         item_id: &str,
         compiled: &crate::compiler::Compiled,
-        answer: &crate::model::Answer,
+        answer: serde_json::Value,
+        decision: &crate::compiler::Decision,
+        actual_model: &str,
         expected: Option<serde_json::Value>,
     ) -> Self {
-        let hit = compiled.is_hit(answer);
-        let confidence = answer.answer_confidence.or(answer.confidence);
+        let hit = decision.hit;
+        let confidence = decision.confidence;
         // 低置信、或与业务真值不一致，都进回流队列。
         let mismatched = expected
             .as_ref()
-            .is_some_and(|exp| *exp != serde_json::Value::Bool(hit));
-        let low_confidence = confidence.map(|c| c < 0.7).unwrap_or(true);
-        let answer_json = serde_json::to_value(answer).unwrap_or(serde_json::Value::Null);
+            .is_some_and(|exp| *exp != decision.prediction);
         Self {
             item_id: item_id.to_string(),
             qid: compiled.qid.clone(),
-            model: compiled.envelope.model.clone(),
-            answer: answer_json,
+            model: actual_model.to_string(),
+            taxonomy_version: compiled.taxonomy_version.clone(),
+            state: compiled.envelope.state.clone(),
+            prediction: decision.prediction.clone(),
+            accepted: decision.accepted,
+            answer,
             expected,
             hit,
             confidence,
-            needs_review: mismatched || low_confidence,
+            needs_review: mismatched || !decision.accepted,
             recorded_at: now_rfc3339(),
         }
     }

@@ -1,57 +1,30 @@
 #!/usr/bin/env node
-// 生成各平台的 npm 包目录结构，供 CI 打包发布。
-//
-// 用法：node npm/scripts/gen-platform-packages.mjs <version>
-// 产物：dist/npm/<platform-package>/ 每个目录一个可发布包。
-
-import { mkdirSync, writeFileSync, copyFileSync, chmodSync, existsSync, readFileSync } from "node:fs";
-import { join, dirname } from "node:path";
+import { mkdirSync, writeFileSync, copyFileSync, chmodSync, statSync, readFileSync } from "node:fs";
+import { join, dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-
-const __dirname = dirname(fileURLToPath(import.meta.url));
-const root = join(__dirname, "..", "..");
-const dist = join(root, "dist", "npm");
-const version = process.argv[2] || JSON.parse(readFileSync(join(root, "package.json"), "utf8")).version;
-
-const TARGETS = [
-  { pkg: "@qa-intent/cli-darwin-arm64", os: "darwin", cpu: "arm64", rust: "aarch64-apple-darwin", exe: "qai" },
-  { pkg: "@qa-intent/cli-darwin-x64", os: "darwin", cpu: "x64", rust: "x86_64-apple-darwin", exe: "qai" },
-  { pkg: "@qa-intent/cli-linux-x64", os: "linux", cpu: "x64", rust: "x86_64-unknown-linux-gnu", exe: "qai" },
-  { pkg: "@qa-intent/cli-linux-arm64", os: "linux", cpu: "arm64", rust: "aarch64-unknown-linux-gnu", exe: "qai" },
-  { pkg: "@qa-intent/cli-win32-x64", os: "win32", cpu: "x64", rust: "x86_64-pc-windows-msvc", exe: "qai.exe" },
-];
-
-for (const t of TARGETS) {
-  const dir = join(dist, t.pkg.replace("@", "").replace("/", "-"));
-  const binDir = join(dir, "bin");
-  mkdirSync(binDir, { recursive: true });
-
-  writeFileSync(
-    join(dir, "package.json"),
-    JSON.stringify(
-      {
-        name: t.pkg,
-        version,
-        description: `qai native binary for ${t.os}-${t.cpu}`,
-        license: "MIT",
-        os: [t.os],
-        cpu: [t.cpu],
-        files: ["bin"],
-      },
-      null,
-      2
-    ) + "\n"
-  );
-
-  const src = process.env.BIN_DIR
-    ? join(process.env.BIN_DIR, t.rust, t.exe)
-    : join(root, "target", t.rust, "release", t.exe);
-  if (!existsSync(src)) {
-    console.warn(`跳过 ${t.pkg}：未找到 ${src}`);
-    continue;
-  }
-  const dst = join(binDir, t.exe);
-  copyFileSync(src, dst);
-  if (t.os !== "win32") chmodSync(dst, 0o755);
-  console.log(`已生成 ${t.pkg} <- ${src}`);
+import targets from "../bin/targets.cjs";
+const root = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
+const manifest = JSON.parse(readFileSync(join(root, "package.json"), "utf8"));
+const selected = process.argv[2] ? targets.filter(t => t.rust === process.argv[2]) : targets;
+if (!selected.length) throw new Error("未知 Rust target");
+const sources = selected.map(t => ({ ...t, src: process.env.BIN_DIR
+  ? join(process.env.BIN_DIR, t.rust, t.exe)
+  : join(root, "target", t.rust, "release", t.exe) }));
+// 先校验所有输入，缺少任何二进制就失败，不能生成可误发布的空包。
+for (const t of sources) {
+  if (!statSync(t.src).isFile() || statSync(t.src).size === 0) throw new Error(`缺少二进制：${t.src}`);
+  if (manifest.optionalDependencies[t.pkg] !== manifest.version) throw new Error(`版本不一致：${t.pkg}`);
+}
+for (const t of sources) {
+  const dir = join(root, "dist/npm", t.pkg);
+  mkdirSync(join(dir, "bin"), { recursive: true });
+  copyFileSync(t.src, join(dir, "bin", t.exe));
+  if (t.os !== "win32") chmodSync(join(dir, "bin", t.exe), 0o755);
+  copyFileSync(join(root, "LICENSE"), join(dir, "LICENSE"));
+  writeFileSync(join(dir, "package.json"), JSON.stringify({
+    name: t.pkg, version: manifest.version, description: `qai native binary for ${t.os}-${t.cpu}`,
+    license: "MIT", repository: manifest.repository, os: [t.os], cpu: [t.cpu],
+    main: `bin/${t.exe}`, files: ["bin", "LICENSE"]
+  }, null, 2) + "\n");
+  console.log(`已生成 ${t.pkg}@${manifest.version}`);
 }

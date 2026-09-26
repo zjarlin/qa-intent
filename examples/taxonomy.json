@@ -11,12 +11,14 @@
         "lookup": "事实查询题"
       },
       "threshold": 0.5,
+      "min_confidence": 0.7,
       "action": "route_to_solver"
     },
     "equivalent": {
       "type": "noul",
       "instructions": "用户的回答与参考答案在语义上是否等价？",
       "threshold": 0.7,
+      "min_confidence": 0.7,
       "action": "mark_correct"
     }
   }

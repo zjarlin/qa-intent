@@ -1,72 +1,45 @@
-# 发布到 npm
+# npm 发布
 
-`qai` 以「主包 + 平台二进制包」的形式发布：
+主包 `qa-intent` 的命令入口是 `npm/bin/qai.js`，通过 optionalDependencies 分发
+`qa-intent-darwin-arm64`、`qa-intent-darwin-x64`、`qa-intent-linux-arm64`、
+`qa-intent-linux-x64`、`qa-intent-win32-x64`。这些是普通包名，不需要创建 npm 组织。
 
-- 主包 `qa-intent`：只含 Node 启动器 `bin/qai.js`
-- 平台包 `@qa-intent/cli-<os>-<arch>`：含原生二进制，通过 `optionalDependencies` 分发
+## 首次发布
 
-npm 会按当前平台只安装匹配的那个平台包，用户不会下载无关平台。
+1. 用 `npm login --auth-type=web` 登录 npm，并在浏览器完成安全密钥验证。
+2. 等待 GitHub CI 五个平台构建和安装测试成功，下载该提交的五个平台 artifact。
+3. 用 `BIN_DIR=<artifact目录> node npm/scripts/gen-platform-packages.mjs` 生成包。
+   artifact 子目录名必须为 Rust target；每个目录含 qai 或 qai.exe。
+4. `npm run test:package` 验证主包与当前平台包的实际 tarball。
+5. `node npm/scripts/publish.mjs` 先发布五个平台包，最后发布主包。
+   首次发布可能要求 npm 再次二次验证；不要提交任何令牌。
 
-## 一次性配置（二选一）
+## 自动发布
 
-### 方式一：Trusted Publisher（推荐，无需长期 token）
+在这六个包的 npm 设置中配置 Trusted Publisher：
+GitHub owner = `zjarlin`、repository = `qa-intent`、workflow = `ci.yml`，environment 留空。
+包需先存在；仅在 workflow 中声明 id-token 权限不会自动建立 npm 信任关系。
 
-在 npmjs.com 为 **每个包** 配置 GitHub Actions 发布者：
+CI 使用 Node 24、npm 11 和 OIDC provenance。默认分支推送/手动 dispatch 都可触发；
+没有可信发布者时会报告发布失败。首次引导也兼容仓库 NPM_TOKEN secret，
+应使用当前 npm 支持的凭据类型，不能依赖已废弃的 classic/Automation token。
+账号验证及可信发布者配置完成后无需在每次推送时人工验证。
 
-| 字段 | 值 |
-|---|---|
-| Publisher | GitHub Actions |
-| Organization / User | `zjarlin` |
-| Repository | `qa-intent` |
-| Workflow filename | `ci.yml` |
-| Environment | 留空 |
+发布器仅在 registry 已存在精确版本时跳过；404 代表需要发布，其他错误立即失败。
+不要修改已发布版本的内容后仍沿用原版本。更新 Cargo.toml、Cargo.lock、
+package.json 及所有 optionalDependencies 的版本后提交。
 
-需要配置的包：
+## 验证
 
-- `qa-intent`
-- `@qa-intent/cli-darwin-arm64`
-- `@qa-intent/cli-darwin-x64`
-- `@qa-intent/cli-linux-x64`
-- `@qa-intent/cli-linux-arm64`
-- `@qa-intent/cli-win32-x64`
+每个平台 job 都执行真实 npm pack + 离线 npm install，
+校验命令链接、版本、随包 skill 和示例编译。发布后 CI 再从公共 npm registry 安装。
+随后用 AIO 的 `tool release sync` 同步市场，npm 与市场的成功状态分别报告。
 
-> 注意：首次发布前如果包不存在，需要先手动发布一次，或在 npmjs.com 预创建包名后配置发布者。
-
-### 方式二：NPM_TOKEN
-
-```bash
-# 在 npmjs.com 生成 Automation token，然后：
-gh secret set NPM_TOKEN --repo zjarlin/qa-intent
+```sh
+cargo build --release --locked --target aarch64-apple-darwin
+node npm/scripts/gen-platform-packages.mjs aarch64-apple-darwin
+npm run test:package
+npm view qa-intent version
 ```
 
-CI 已经在 `publish` 步骤同时兼容两种方式。
-
-## 触发发布
-
-推送到 `main` 即触发：
-
-```bash
-git push origin main
-```
-
-流程：`test` → 五平台 `build` → `publish`（先发平台包，再发主包）。
-
-## 版本号
-
-主包与平台包版本必须一致。改版本：
-
-```bash
-# 同时更新 package.json 与平台的 optionalDependencies
-npm version 0.2.0 --no-git-tag-version
-git commit -am "chore: 发布 0.2.0"
-git push origin main
-```
-
-## 本地验证打包内容
-
-```bash
-cargo build --release --target aarch64-apple-darwin
-BIN_DIR=$PWD/target node npm/scripts/gen-platform-packages.mjs
-npm pack --dry-run dist/npm/qa-intent-cli-darwin-arm64
-npm pack --dry-run .
-```
+原始构建产物始终保留在 GitHub Actions 的 artifact 中，认证失败不会删除已生成的包。
